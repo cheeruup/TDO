@@ -5,51 +5,148 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Token Duel Prototype</title>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 24px auto; padding: 0 12px; }
+    body { font-family: system-ui, sans-serif; max-width: 1150px; margin: 20px auto; padding: 0 12px; }
     .row { display:flex; gap:12px; flex-wrap:wrap; }
-    .card { border: 1px solid #ddd; border-radius: 10px; padding: 12px; flex:1; min-width: 260px; }
-    button { padding: 10px 12px; margin-right: 8px; }
-    pre { background:#f6f6f6; padding:12px; border-radius:10px; overflow:auto; height: 280px; }
+    .card { border:1px solid #ddd; border-radius:12px; padding:12px; flex:1; min-width: 340px; }
+    button { padding: 8px 10px; margin: 4px 6px 4px 0; }
+    select { padding: 8px; margin-right: 6px; }
+    .muted { color:#666; font-size: 14px; }
+    pre { background:#f6f6f6; padding:10px; border-radius:12px; height: 240px; overflow:auto; }
+    .pill { display:inline-block; padding:2px 8px; border:1px solid #ddd; border-radius:999px; margin-left:6px; }
+    .hand { background:#fafafa; border:1px solid #eee; border-radius:10px; padding:8px; min-height: 44px; }
+    .kv { display:grid; grid-template-columns: 130px 1fr; gap:6px 10px; align-items:center; }
+    .line { border-top:1px solid #eee; margin:12px 0; }
   </style>
 </head>
 <body>
-  <h1>Token Duel (Prototype)</h1>
+  <h2>Token Duel (Prototype)</h2>
 
   <div class="card">
-    <div class="row">
+    <div>
       <input id="roomId" placeholder="room id (예: abc123)" />
       <button id="joinBtn">방 입장</button>
     </div>
-    <p>내 좌석: <b id="seat">-</b></p>
-    <p>방: <b id="room">-</b></p>
+    <div style="margin-top:8px;">
+      내 좌석: <b id="seat">-</b>
+      <span class="pill">현재 턴: <b id="turn">-</b></span>
+      <span class="pill">진행: <b id="phase">-</b></span>
+    </div>
+    <div class="muted" style="margin-top:6px;">
+      순서: <b>주사위 → 카드 2장(첫 장 오픈) → (장착/업글 자유) → (전투 가능) → 턴 종료</b>
+    </div>
   </div>
 
   <div class="row">
     <div class="card">
-      <h3>상태</h3>
-      <div>현재 턴: <b id="turn">-</b></div>
-      <div>A HP: <b id="hpA">-</b></div>
-      <div>B HP: <b id="hpB">-</b></div>
-      <div>오픈: <b id="open">-</b></div>
-      <div>A 토큰(R/B/Y): <b id="tokA">-</b></div>
-      <div>B 토큰(R/B/Y): <b id="tokB">-</b></div>
-      <div>A 손패(장수): <b id="handA">-</b></div>
-      <div>B 손패(장수): <b id="handB">-</b></div>
+      <h3>조작</h3>
+
+      <button id="rollBtn" disabled>🎲 1) 주사위</button>
 
       <div style="margin-top:10px;">
-        <button id="rollBtn" disabled>🎲 주사위</button>
-        <button id="take2Btn" disabled>🃏 카드2장</button>
-        <button id="endTurnBtn" disabled>✅ 턴종료</button>
+        <div><b>2) 카드 가져가기</b> <span class="muted">(총 2장)</span></div>
+        <div class="muted">오픈 카드는 클릭해서 가져갑니다.</div>
+        <div id="openButtons" style="margin-top:6px;"></div>
+        <button id="takeDeckBtn" disabled>📦 덱에서 1장 (두 번째 카드)</button>
+      </div>
+
+      <div class="line"></div>
+
+      <div><b>3) 장착</b> <span class="muted">(손패에서 선택)</span></div>
+      <div style="margin-top:6px;">
+        <select id="equipSlot">
+          <option value="weapon">무기</option>
+          <option value="armor">방어</option>
+        </select>
+        <select id="equipCard"></select>
+        <button id="equipBtn" disabled>장착</button>
+      </div>
+
+      <div class="line"></div>
+
+      <div><b>4) 업그레이드</b> <span class="muted">(재료는 손패/착용 어디서든, 사용 시 버림 / 결과는 손패 획득)</span></div>
+      <div class="muted">c: 같은카드2 + <b>아무(동종)</b>1 / b: 같은카드3 + <b>아무(동종)</b>1 / a: 같은카드5</div>
+      <div style="margin-top:6px;">
+        <select id="upType">
+          <option value="weapon">무기</option>
+          <option value="armor">방어</option>
+        </select>
+        <select id="upBase"></select>
+        <button id="upCBtn" disabled>c 업글</button>
+        <button id="upBBtn" disabled>b 업글</button>
+        <button id="upABtn" disabled>a 업글</button>
+      </div>
+
+      <div class="line"></div>
+
+      <div><b>5) 전투</b> <span class="muted">(양쪽 토큰 총합 3+이면 가능)</span></div>
+      <div class="muted">상성(임시): R>Y, Y>B, B>R / 유리×1.5 불리×0.5</div>
+      <button id="startCombatBtn" disabled>⚔️ 전투 시작</button>
+
+      <div id="combatPanel" style="margin-top:8px; display:none;">
+        <div class="muted">내 토큰 선택 (무기 1 + 방어 1)</div>
+        <div style="margin-top:6px;">
+          <select id="combatW">
+            <option value="R">무기: R</option>
+            <option value="B">무기: B</option>
+            <option value="Y">무기: Y</option>
+          </select>
+          <select id="combatA">
+            <option value="R">방어: R</option>
+            <option value="B">방어: B</option>
+            <option value="Y">방어: Y</option>
+          </select>
+          <button id="submitCombatBtn">선택 제출</button>
+        </div>
+        <div class="muted" style="margin-top:6px;">
+          상태: <b id="combatStatus">-</b>
+        </div>
+      </div>
+
+      <div class="line"></div>
+
+      <button id="endTurnBtn" disabled>✅ 턴 종료</button>
+
+      <div class="line"></div>
+
+      <div class="kv">
+        <div><b>덱 잔량</b></div><div id="deckCount">-</div>
+        <div><b>오픈</b></div><div id="openText">-</div>
+        <div><b>A 토큰(총)</b></div><div><span id="tokA">-</span> / <span id="tokATotal">-</span></div>
+        <div><b>B 토큰(총)</b></div><div><span id="tokB">-</span> / <span id="tokBTotal">-</span></div>
+        <div><b>HP</b></div><div>A=<span id="hpA">-</span>, B=<span id="hpB">-</span></div>
       </div>
     </div>
 
     <div class="card">
-      <h3>로그</h3>
-      <pre id="log"></pre>
+      <h3>손패(공개) & 장비</h3>
+
+      <div class="kv">
+        <div><b>A 무기</b></div><div id="eqAWeapon">-</div>
+        <div><b>A 방어</b></div><div id="eqAArmor">-</div>
+        <div><b>B 무기</b></div><div id="eqBWeapon">-</div>
+        <div><b>B 방어</b></div><div id="eqBArmor">-</div>
+      </div>
+
+      <div class="line"></div>
+
+      <div><b>A 손패</b> (<span id="handCountA">0</span>)</div>
+      <div class="hand" id="handA"></div>
+
+      <div style="margin-top:10px;"><b>B 손패</b> (<span id="handCountB">0</span>)</div>
+      <div class="hand" id="handB"></div>
+
+      <div class="muted" style="margin-top:10px;">
+        * 프로토타입이라 손패를 공개로 표시합니다.
+      </div>
     </div>
   </div>
 
+  <div class="card">
+    <h3>로그</h3>
+    <pre id="log"></pre>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
-  <script src="client.js"></script>
+  <script src="/client.js"></script>
 </body>
 </html>
