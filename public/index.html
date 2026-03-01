@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Token Duel Prototype</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 24px auto; padding: 0 12px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 12px; flex:1; min-width: 260px; }
+    button { padding: 10px 12px; margin-right: 8px; }
+    pre { background:#f6f6f6; padding:12px; border-radius:10px; overflow:auto; height: 280px; }
+  </style>
+</head>
+<body>
+  <h1>Token Duel (Prototype)</h1>
+
+  <div class="card">
+    <div class="row">
+      <input id="roomId" placeholder="room id (예: abc123)" />
+      <button id="joinBtn">방 입장</button>
+    </div>
+    <p>내 좌석: <b id="seat">-</b></p>
+    <p>방: <b id="room">-</b></p>
+  </div>
+
+  <div class="row">
+    <div class="card">
+      <h3>상태</h3>
+      <div>현재 턴: <b id="turn">-</b></div>
+      <div>A HP: <b id="hpA">-</b></div>
+      <div>B HP: <b id="hpB">-</b></div>
+      <div>오픈: <b id="open">-</b></div>
+      <div>A 토큰(R/B/Y): <b id="tokA">-</b></div>
+      <div>B 토큰(R/B/Y): <b id="tokB">-</b></div>
+      <div>A 손패(장수): <b id="handA">-</b></div>
+      <div>B 손패(장수): <b id="handB">-</b></div>
+
+      <div style="margin-top:10px;">
+        <button id="rollBtn" disabled>🎲 주사위</button>
+        <button id="take2Btn" disabled>🃏 카드2장</button>
+        <button id="endTurnBtn" disabled>✅ 턴종료</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>로그</h3>
+      <pre id="log"></pre>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>
