@@ -1,0 +1,60 @@
+{
+  "hp": { "start": 20, "max": 20 },
+
+  "colors": ["R", "B", "Y"],
+  "rps": { "R": "Y", "Y": "B", "B": "R" },
+  "multiplier": { "win": 1.5, "lose": 0.5, "draw": 1.0 },
+
+  "equipmentPower": {
+    "base": 1,
+    "c": 3,
+    "b": 5,
+    "a": 7
+  },
+
+  "cards": {
+    "weaponsBase": ["검", "마법봉", "활"],
+    "armorsBase": ["방패", "힐", "회피"],
+
+    "upgraded": {
+      "weapon": {
+        "c": "c무기",
+        "b": "b무기",
+        "a": { "검": "a검", "마법봉": "a마법봉", "활": "a활" }
+      },
+      "armor": {
+        "c": "c방어",
+        "b": "b방어",
+        "a": { "방패": "a방패", "힐": "a힐", "회피": "a회피" }
+      }
+    }
+  },
+
+  "upgradeRules": {
+    "c": { "same": 2, "anySameType": 1 },
+    "b": { "same": 3, "anySameType": 1 },
+    "a": { "same": 5, "anySameType": 0 }
+  },
+
+  "turnFlow": {
+    "openSlots": 3,
+    "drawPerTurn": 2,
+    "firstDrawMustBeOpen": true
+  },
+
+  "combat": {
+    "autoStart": true,
+    "minTokenTotalEach": 3,
+    "spend": { "weapon": 1, "armor": 1 }
+  },
+
+  "deck": [
+    { "card": "검", "count": 10 },
+    { "card": "마법봉", "count": 10 },
+    { "card": "활", "count": 10 },
+
+    { "card": "방패", "count": 10 },
+    { "card": "힐", "count": 10 },
+    { "card": "회피", "count": 10 }
+  ]
+}

@@ -1,0 +1,248 @@
+:root{
+  --bg:#0b0f17;
+  --panel: rgba(255,255,255,0.08);
+  --panel2: rgba(0,0,0,0.28);
+  --border: rgba(255,255,255,0.14);
+  --text: rgba(255,255,255,0.92);
+  --muted: rgba(255,255,255,0.70);
+  --good: rgba(120,220,120,0.75);
+  --line: rgba(255,255,255,0.10);
+}
+
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+
+body{
+  margin:0;
+  color:var(--text);
+  font-weight:400; /* ✅ 기본 두께 */
+  background:
+    radial-gradient(1200px 600px at 15% 10%, rgba(80,180,255,0.18), transparent 55%),
+    radial-gradient(900px 500px at 90% 15%, rgba(255,120,80,0.14), transparent 60%),
+    radial-gradient(900px 600px at 40% 90%, rgba(160,80,255,0.12), transparent 60%),
+    var(--bg);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Apple SD Gothic Neo", "Noto Sans KR", Arial;
+}
+
+.container{ max-width: 1150px; margin: 18px auto; padding: 0 12px 30px; }
+
+.topbar{
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom: 12px;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.title{
+  font-size: 20px;
+  font-weight: 400; /* ✅ */
+  letter-spacing: 0.2px;
+  display:flex; align-items:baseline; gap:10px;
+}
+
+.subtitle{
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400; /* ✅ */
+}
+
+.panel{
+  border:1px solid var(--border);
+  background: var(--panel);
+  border-radius: 16px;
+  padding: 12px;
+  backdrop-filter: blur(6px);
+}
+
+.panel2{
+  border:1px solid var(--border);
+  background: var(--panel2);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.row{ display:flex; gap:12px; flex-wrap:wrap; }
+.col{ flex:1; min-width: 340px; }
+
+.pill{
+  display:inline-flex; align-items:center; gap:6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border:1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 400; /* ✅ */
+  white-space: nowrap;
+}
+.pill b{ color: var(--text); font-weight: 700; } /* 강조는 b로만 */
+
+.joinRow{
+  display:flex; gap:8px; flex-wrap:wrap; align-items:center;
+  padding:10px;
+}
+
+input{
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(0,0,0,0.25);
+  color: var(--text);
+  outline: none;
+  min-width: 220px;
+  font-weight: 400; /* ✅ */
+}
+
+button{
+  cursor:pointer;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(255,255,255,0.10);
+  color: var(--text);
+  font-weight: 400; /* ✅ */
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+button:hover{ background: rgba(255,255,255,0.14); }
+button:disabled{ opacity: 0.5; cursor:not-allowed; }
+
+select{
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(0,0,0,0.25);
+  color: var(--text);
+  outline: none;
+  margin-right: 6px;
+  font-weight: 400; /* ✅ */
+}
+
+/* HUD */
+.hudWrap{ margin-top: 12px; }
+.hud{ flex:1; min-width: 320px; padding: 12px; }
+.hud.you{ background: rgba(80,180,255,0.11); }
+
+.hudHeader{ display:flex; align-items:center; justify-content:space-between; margin-bottom: 10px; }
+
+.badge{
+  width: 42px; height: 42px;
+  border-radius: 14px;
+  display:grid; place-items:center;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(0,0,0,0.28);
+  font-weight: 800; /* ✅ 상태창만 굵게 */
+}
+
+.hudLeft{ display:flex; gap:10px; align-items:center; }
+
+.hudName{ font-weight: 800; font-size: 13px; } /* ✅ 상태창만 굵게 */
+.hudMeta{ color: var(--muted); font-size: 12px; font-weight: 400; } /* ✅ */
+
+.hpbar{
+  height: 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.10);
+  overflow:hidden;
+  margin-bottom: 10px;
+}
+.hpfill{ height: 100%; width: 0%; background: var(--good); transition: width 180ms ease; }
+
+.hudGrid{ display:grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+
+.label{ color: var(--muted); font-size: 12px; font-weight: 400; margin-bottom: 6px; } /* ✅ */
+.value{ font-weight: 800; } /* ✅ 상태창만 굵게 */
+
+.chips{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.chip{
+  display:inline-flex; align-items:center; gap:8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.06);
+  font-size: 12px;
+  font-weight: 800; /* ✅ 상태창만 굵게 */
+  color: var(--text);
+  user-select:none;
+  white-space: nowrap;
+}
+.chip small{ color: var(--muted); font-weight: 400; } /* ✅ */
+
+/* Token dots */
+.tokline{ display:inline-flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.tokgrp{ display:inline-flex; gap:6px; align-items:center; font-weight: 800; } /* ✅ 상태창만 굵게 */
+
+.dot{
+  width: 12px; height: 12px; border-radius: 999px;
+  display:inline-block;
+  border: 1px solid rgba(255,255,255,0.22);
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.20) inset;
+}
+.dot.r{ background: rgba(255,90,90,0.95); }
+.dot.b{ background: rgba(90,170,255,0.95); }
+.dot.y{ background: rgba(255,210,80,0.95); }
+
+/* Hand chips */
+.handRow{ display:flex; flex-wrap:wrap; gap:8px; }
+.cardChip{
+  display:inline-flex; align-items:center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border:1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.22);
+  font-weight: 800; /* ✅ 상태창만 굵게 */
+  font-size: 12px;
+  user-select:none;
+}
+.emptyText{ color: rgba(255,255,255,0.55); font-weight: 400; font-size: 12px; } /* ✅ */
+
+.sectionTitle{ font-weight: 400; font-size: 13px; color: var(--muted); margin: 0 0 8px 0; } /* ✅ */
+.btnGrid{ display:flex; flex-wrap:wrap; gap: 10px; align-items:center; }
+.divider{ border-top: 1px solid var(--line); margin: 12px 0; }
+.vDivider{ width: 1px; background: var(--line); align-self: stretch; margin: 0 12px; }
+
+/* ✅ “조작 줄”만 3:7 */
+.actionSplit{
+  display:flex;
+  align-items:center;
+  flex-wrap: nowrap;
+  gap: 0;
+}
+.actionLeft{ flex: 3; min-width: 0; }
+.actionRight{ flex: 7; min-width: 0; }
+
+/* ✅ 버튼 한 줄 유지(넘치면 가로 스크롤) */
+.openRow{
+  display:flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items:center;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.openRow::-webkit-scrollbar{ height: 6px; }
+.openRow::-webkit-scrollbar-thumb{ background: rgba(255,255,255,0.18); border-radius: 999px; }
+
+pre{
+  margin:0;
+  background: rgba(0,0,0,0.28);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text);
+  padding: 12px;
+  border-radius: 16px;
+  height: 520px;
+  overflow:auto;
+  white-space: pre-wrap;
+  font-weight: 400; /* ✅ */
+  line-height: 1.45; /* ✅ 가독성 */
+}
+
+@media (max-width: 900px){
+  pre{ height: 280px; }
+  .actionSplit{ flex-wrap: wrap; }
+  .vDivider{ display:none; }
+  .actionRight{ margin-top: 10px; }
+  .openRow{ overflow-x: auto; }
+}
