@@ -1,29 +1,76 @@
+// public/client.js
+
 const socket = io();
 
 let currentRoomId = null;
-let mySeat = null;
+let mySeat = null; // "A" | "B" | "S"
 let lastState = null;
-let BAL = null; // state.balance 저장
+let BAL = null;
 
 const $ = (id) => document.getElementById(id);
 
-function setOptions(selectEl, items) {
-  if (!selectEl) return;
-  const prev = selectEl.value;
-  selectEl.innerHTML = "";
-  for (const it of items) {
-    const opt = document.createElement("option");
-    opt.value = it;
-    opt.textContent = it;
-    selectEl.appendChild(opt);
+const BASE_ICONS = {
+  "검": "⚔️",
+  "활": "🏹",
+  "마법봉": "🔮",
+  "힐": "💊",
+  "방패": "🛡️",
+  "회피": "👟"
+};
+
+let UPGRADE_DEFS = [];
+let upgradeUIBuilt = false;
+
+function makeBadgeIcon(emoji, badgeClass) {
+  const span = document.createElement("span");
+  span.className = `iconBadge ${badgeClass}`;
+  span.textContent = emoji;
+  return span;
+}
+
+function makeCardIconEl(cardName) {
+  if (typeof cardName === "string" && cardName.startsWith("a")) {
+    const base = cardName.slice(1);
+    const em = BASE_ICONS[base] || "⭐";
+    return makeBadgeIcon(em, "a");
   }
-  if (items.length === 0) {
-    const opt = document.createElement("option");
-    opt.value = "";
-    opt.textContent = "(없음)";
-    selectEl.appendChild(opt);
+
+  if (cardName === "b무기") return makeBadgeIcon("💍", "bYellow");
+  if (cardName === "c무기") return makeBadgeIcon("💍", "cBlue");
+  if (cardName === "b방어") return makeBadgeIcon("📿", "bYellow");
+  if (cardName === "c방어") return makeBadgeIcon("📿", "cBlue");
+
+  if (BASE_ICONS[cardName]) {
+    const span = document.createElement("span");
+    span.className = "cardIcon";
+    span.textContent = BASE_ICONS[cardName];
+    span.title = cardName;
+    return span;
   }
-  if (items.includes(prev)) selectEl.value = prev;
+
+  const t = document.createElement("span");
+  t.textContent = cardName;
+  return t;
+}
+
+function setEquipValue(el, label, item, power) {
+  if (!el) return;
+  el.innerHTML = "";
+
+  const p = Number.isFinite(power) ? power : 0;
+
+  if (item) {
+    el.appendChild(makeCardIconEl(item));
+    const gap = document.createElement("span");
+    gap.textContent = " ";
+    el.appendChild(gap);
+  }
+
+  const txt = document.createElement("span");
+  txt.textContent = `${label} ${p}`;
+  el.appendChild(txt);
+
+  el.title = item ? item : `${label} 없음`;
 }
 
 function computeSides() {
@@ -31,6 +78,8 @@ function computeSides() {
   if (mySeat === "B") return { left: "B", right: "A" };
   return { left: "A", right: "B" };
 }
+
+/* ----------------- 카드 타입 판별 ----------------- */
 
 function isWeaponCard(card) {
   if (!BAL) return false;
@@ -50,26 +99,7 @@ function isArmorCard(card) {
   return armorSet.has(card);
 }
 
-function updateEquipOptions(state) {
-  if (!BAL || !mySeat) return;
-
-  const slot = $("equipSlot")?.value;
-  const hand = state.hands?.[mySeat] || [];
-
-  let candidates = [];
-  if (slot === "weapon") candidates = hand.filter(isWeaponCard);
-  else candidates = hand.filter(isArmorCard);
-
-  candidates = Array.from(new Set(candidates));
-  setOptions($("equipCard"), candidates);
-}
-
-function updateUpgradeBases() {
-  if (!BAL) return;
-  const type = $("upType")?.value;
-  const baseList = type === "weapon" ? (BAL.cards.weaponsBase || []) : (BAL.cards.armorsBase || []);
-  setOptions($("upBase"), baseList);
-}
+/* ----------------- 렌더링 ----------------- */
 
 function renderTokens(el, tokens) {
   if (!el) return;
@@ -80,7 +110,6 @@ function renderTokens(el, tokens) {
 
   for (const c of order) {
     const n = tokens?.[c] || 0;
-
     const grp = document.createElement("span");
     grp.className = "tokgrp";
 
@@ -96,9 +125,10 @@ function renderTokens(el, tokens) {
   }
 }
 
-function renderHand(el, hand) {
+function renderHand(el, hand, seat, isMyTurn) {
   if (!el) return;
   el.innerHTML = "";
+
   if (!hand || hand.length === 0) {
     const t = document.createElement("div");
     t.className = "emptyText";
@@ -107,12 +137,172 @@ function renderHand(el, hand) {
     return;
   }
 
+  const clickable = !!(mySeat && (mySeat === "A" || mySeat === "B") && seat === mySeat && isMyTurn && currentRoomId);
+
   const sorted = [...hand].sort((a, b) => (a > b ? 1 : -1));
   for (const c of sorted) {
     const chip = document.createElement("span");
     chip.className = "cardChip";
-    chip.textContent = c;
+    chip.title = c;
+    chip.appendChild(makeCardIconEl(c));
+
+    if (clickable) {
+      chip.classList.add("clickable");
+      chip.onclick = () => {
+        const slot = isWeaponCard(c) ? "weapon" : isArmorCard(c) ? "armor" : null;
+        if (!slot) return;
+        socket.emit("equip", { roomId: currentRoomId, slot, card: c });
+      };
+    }
+
     el.appendChild(chip);
+  }
+}
+
+/* ----------------- 업글 로직 (핵심 수정) ----------------- */
+
+/**
+ * ✅ 특정 base로 업글 가능 여부 체크
+ * - same: base 같은 카드 N장
+ * - any: 동종(weapon/armor) 아무 카드 1장 (엔진에서 실제로 소모)
+ *
+ * state.counts 는 "손패+착용" 합산된 개수(서버 derived)를 사용
+ */
+function canUpgradeWithBase(state, seat, type, tier, base) {
+  if (!BAL) return false;
+  if (!seat) return false;
+
+  const rule = BAL.upgradeRules?.[tier];
+  if (!rule) return false;
+
+  const counts = state.counts?.[seat] || {};
+  const needSame = rule.same || 0;
+  const needAny = (rule.any ?? 0);
+
+  if (!base) return false;
+  if ((counts[base] || 0) < needSame) return false;
+
+  if (needAny === 0) return true;
+
+  // base를 needSame만큼 먼저 소모했다고 가정
+  const temp = { ...counts };
+  temp[base] = (temp[base] || 0) - needSame;
+
+  // ✅ 남은 카드들 중 "동종" 카드가 1장이라도 있으면 OK
+  for (const [card, v] of Object.entries(temp)) {
+    if (v <= 0) continue;
+
+    if (type === "weapon") {
+      if (isWeaponCard(card)) return true;
+    } else if (type === "armor") {
+      if (isArmorCard(card)) return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * ✅ b/c 업글은 base가 "자동 선택"이어야 함.
+ * 가능한 base들을 돌면서 1) 등급 낮은 base 우선 2) 이름순으로 고른다.
+ *
+ * (검/마법봉/활) or (방패/힐/회피) 중에서 조건 만족하는 base를 고름
+ */
+function pickUpgradeBase(state, seat, type, tier) {
+  if (!BAL) return null;
+
+  const basePool = type === "weapon" ? (BAL.cards.weaponsBase || []) : (BAL.cards.armorsBase || []);
+  const sorted = [...basePool].sort((a, b) => (a > b ? 1 : -1)); // 재현성
+
+  for (const b of sorted) {
+    if (canUpgradeWithBase(state, seat, type, tier, b)) return b;
+  }
+  return null;
+}
+
+/**
+ * ✅ 업글 가능 체크 (UI용)
+ * - a 업글: base가 고정(검/마법봉/활 등)
+ * - b/c 업글: base가 null로 들어오므로 자동 선택 가능한지만 본다
+ */
+function canUpgrade(state, seat, type, tier, baseOrNull) {
+  if (baseOrNull) return canUpgradeWithBase(state, seat, type, tier, baseOrNull);
+  const picked = pickUpgradeBase(state, seat, type, tier);
+  return !!picked;
+}
+
+function buildUpgradeDefsFixedOrder() {
+  if (!BAL) return;
+
+  const wa = BAL.cards.upgraded?.weapon?.a || {};
+  const aa = BAL.cards.upgraded?.armor?.a || {};
+
+  UPGRADE_DEFS = [
+    // a는 베이스 고정
+    { id: "up_a_weapon_검", card: wa["검"], type: "weapon", tier: "a", base: "검" },
+    { id: "up_a_weapon_마법봉", card: wa["마법봉"], type: "weapon", tier: "a", base: "마법봉" },
+    { id: "up_a_weapon_활", card: wa["활"], type: "weapon", tier: "a", base: "활" },
+
+    // ✅ b/c는 base 자동 선택 (null)
+    { id: "up_b_weapon", card: BAL.cards.upgraded?.weapon?.b, type: "weapon", tier: "b", base: null },
+    { id: "up_c_weapon", card: BAL.cards.upgraded?.weapon?.c, type: "weapon", tier: "c", base: null },
+
+    // a는 베이스 고정
+    { id: "up_a_armor_방패", card: aa["방패"], type: "armor", tier: "a", base: "방패" },
+    { id: "up_a_armor_힐", card: aa["힐"], type: "armor", tier: "a", base: "힐" },
+    { id: "up_a_armor_회피", card: aa["회피"], type: "armor", tier: "a", base: "회피" },
+
+    // ✅ b/c는 base 자동 선택 (null)
+    { id: "up_b_armor", card: BAL.cards.upgraded?.armor?.b, type: "armor", tier: "b", base: null },
+    { id: "up_c_armor", card: BAL.cards.upgraded?.armor?.c, type: "armor", tier: "c", base: null }
+  ].filter(d => !!d.card);
+}
+
+function renderUpgradeButtons() {
+  const wrap = $("upgradeButtons");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+
+  for (const d of UPGRADE_DEFS) {
+    const btn = document.createElement("button");
+    btn.className = "upBtn";
+    btn.id = d.id;
+    btn.title = d.card;
+    btn.appendChild(makeCardIconEl(d.card));
+
+    btn.onclick = () => {
+      if (!currentRoomId || !lastState || !BAL) return;
+      if (!(mySeat === "A" || mySeat === "B")) return;
+      if (btn.disabled) return;
+
+      const myTurn = (lastState.turn === mySeat);
+      if (!myTurn) return;
+
+      // ✅ base 결정: a는 고정, b/c는 자동 선택
+      const baseToUse = d.base || pickUpgradeBase(lastState, mySeat, d.type, d.tier);
+      if (!baseToUse) return;
+
+      if (!canUpgradeWithBase(lastState, mySeat, d.type, d.tier, baseToUse)) return;
+
+      socket.emit("upgrade", { roomId: currentRoomId, type: d.type, tier: d.tier, base: baseToUse });
+    };
+
+    wrap.appendChild(btn);
+  }
+
+  upgradeUIBuilt = true;
+}
+
+function refreshUpgradeButtons(state) {
+  if (!state || !BAL) return;
+
+  const isPlayer = (mySeat === "A" || mySeat === "B");
+  const myTurn = isPlayer && (state.turn === mySeat);
+
+  for (const d of UPGRADE_DEFS) {
+    const btn = document.getElementById(d.id);
+    if (!btn) continue;
+    btn.disabled = !(myTurn && canUpgrade(state, mySeat, d.type, d.tier, d.base));
   }
 }
 
@@ -121,8 +311,6 @@ function renderHUD(state) {
 
   if ($("leftBadge")) $("leftBadge").textContent = left;
   if ($("rightBadge")) $("rightBadge").textContent = right;
-  if ($("leftName")) $("leftName").textContent = left === mySeat ? "YOU" : "OPPONENT";
-  if ($("rightName")) $("rightName").textContent = right === mySeat ? "YOU" : "OPPONENT";
 
   const maxHp = BAL?.hp?.max ?? 20;
   const leftHp = state.hp?.[left] ?? 0;
@@ -134,75 +322,25 @@ function renderHUD(state) {
   if ($("leftHpFill")) $("leftHpFill").style.width = `${Math.max(0, Math.min(100, (leftHp / maxHp) * 100))}%`;
   if ($("rightHpFill")) $("rightHpFill").style.width = `${Math.max(0, Math.min(100, (rightHp / maxHp) * 100))}%`;
 
-  if ($("leftWeapon")) $("leftWeapon").textContent = state.equipped?.[left]?.weapon || "-";
-  if ($("leftArmor")) $("leftArmor").textContent = state.equipped?.[left]?.armor || "-";
-  if ($("rightWeapon")) $("rightWeapon").textContent = state.equipped?.[right]?.weapon || "-";
-  if ($("rightArmor")) $("rightArmor").textContent = state.equipped?.[right]?.armor || "-";
+  const pLeftW = state.power?.[left]?.weapon ?? 0;
+  const pLeftA = state.power?.[left]?.armor ?? 0;
+  const pRightW = state.power?.[right]?.weapon ?? 0;
+  const pRightA = state.power?.[right]?.armor ?? 0;
+
+  setEquipValue($("leftArmor"), "방어", state.equipped?.[left]?.armor || null, pLeftA);
+  setEquipValue($("leftWeapon"), "무기", state.equipped?.[left]?.weapon || null, pLeftW);
+  setEquipValue($("rightArmor"), "방어", state.equipped?.[right]?.armor || null, pRightA);
+  setEquipValue($("rightWeapon"), "무기", state.equipped?.[right]?.weapon || null, pRightW);
 
   renderTokens($("leftTokens"), state.tokens?.[left]);
   renderTokens($("rightTokens"), state.tokens?.[right]);
 
-  if ($("leftTokTotal")) $("leftTokTotal").textContent = state.tokenTotal?.[left] ?? 0;
-  if ($("rightTokTotal")) $("rightTokTotal").textContent = state.tokenTotal?.[right] ?? 0;
-
-  const leftHand = state.hands?.[left] || [];
-  const rightHand = state.hands?.[right] || [];
-
-  if ($("leftHandCount")) $("leftHandCount").textContent = leftHand.length;
-  if ($("rightHandCount")) $("rightHandCount").textContent = rightHand.length;
-
-  renderHand($("leftHand"), leftHand);
-  renderHand($("rightHand"), rightHand);
+  const isMyTurn = !!(mySeat && (mySeat === "A" || mySeat === "B") && state.turn === mySeat);
+  renderHand($("leftHand"), state.hands?.[left] || [], left, isMyTurn);
+  renderHand($("rightHand"), state.hands?.[right] || [], right, isMyTurn);
 }
 
-// 업글 가능 여부(클라 계산용): state.counts(손패+착용 포함) 기반
-function canUpgrade(state, seat, type, tier, base) {
-  if (!BAL) return false;
-  if (!seat) return false;
-
-  const rule = BAL.upgradeRules?.[tier];
-  if (!rule) return false;
-
-  const counts = state.counts?.[seat] || {};
-  const needSame = rule.same || 0;
-  const needAny = rule.anySameType || 0;
-
-  if (!base) return false;
-  if ((counts[base] || 0) < needSame) return false;
-
-  if (needAny === 0) return true;
-
-  // base needSame만큼 제외하고 남은 카드 중 동종 1장 있는지
-  const temp = { ...counts };
-  temp[base] = (temp[base] || 0) - needSame;
-
-  const wantWeapon = type === "weapon";
-  for (const [k, v] of Object.entries(temp)) {
-    if (v <= 0) continue;
-    if (wantWeapon && isWeaponCard(k)) return true;
-    if (!wantWeapon && isArmorCard(k)) return true;
-  }
-  return false;
-}
-
-// ✅ 버튼 상태를 즉시 재계산 (업글 버튼 활성화 핵심)
-function refreshButtons(state) {
-  if (!state || !BAL || !mySeat) return;
-
-  const myTurn = state.turn === mySeat;
-
-  // 장착 버튼
-  const equipCard = $("equipCard")?.value;
-  if ($("equipBtn")) $("equipBtn").disabled = !(myTurn && equipCard && equipCard !== "(없음)");
-
-  // 업글 버튼 (주사위 굴림 여부와 무관하게 "내 턴 + 재료"면 가능)
-  const upType = $("upType")?.value;
-  const upBase = $("upBase")?.value;
-
-  if ($("upCBtn")) $("upCBtn").disabled = !(myTurn && canUpgrade(state, mySeat, upType, "c", upBase));
-  if ($("upBBtn")) $("upBBtn").disabled = !(myTurn && canUpgrade(state, mySeat, upType, "b", upBase));
-  if ($("upABtn")) $("upABtn").disabled = !(myTurn && canUpgrade(state, mySeat, upType, "a", upBase));
-}
+/* ----------------- events ----------------- */
 
 $("joinBtn")?.addEventListener("click", () => {
   const roomId = $("roomId")?.value.trim();
@@ -213,10 +351,6 @@ $("joinBtn")?.addEventListener("click", () => {
 socket.on("joined", ({ roomId, seat }) => {
   currentRoomId = roomId;
   mySeat = seat;
-  if ($("seat")) $("seat").textContent = seat;
-
-  // 좌석 확정되면 버튼 상태도 다시 계산될 수 있게
-  if (lastState) refreshButtons(lastState);
 });
 
 socket.on("full", ({ message }) => alert(message));
@@ -224,38 +358,6 @@ socket.on("full", ({ message }) => alert(message));
 $("rollBtn")?.addEventListener("click", () => socket.emit("roll", { roomId: currentRoomId }));
 $("takeDeckBtn")?.addEventListener("click", () => socket.emit("takeDeck", { roomId: currentRoomId }));
 $("endTurnBtn")?.addEventListener("click", () => socket.emit("endTurn", { roomId: currentRoomId }));
-
-$("equipBtn")?.addEventListener("click", () => {
-  const slot = $("equipSlot")?.value;
-  const card = $("equipCard")?.value;
-  if (!card || card === "(없음)") return;
-  socket.emit("equip", { roomId: currentRoomId, slot, card });
-});
-
-$("equipSlot")?.addEventListener("change", () => {
-  if (!lastState) return;
-  updateEquipOptions(lastState);
-  refreshButtons(lastState);
-});
-
-$("equipCard")?.addEventListener("change", () => {
-  if (lastState) refreshButtons(lastState);
-});
-
-// ✅ upType 바꾸면 upBase도 바뀌고, 버튼도 즉시 반영
-$("upType")?.addEventListener("change", () => {
-  updateUpgradeBases();
-  if (lastState) refreshButtons(lastState);
-});
-
-// ✅ upBase 바꾸면 버튼 즉시 반영
-$("upBase")?.addEventListener("change", () => {
-  if (lastState) refreshButtons(lastState);
-});
-
-$("upCBtn")?.addEventListener("click", () => socket.emit("upgrade", { roomId: currentRoomId, type: $("upType").value, tier: "c", base: $("upBase").value }));
-$("upBBtn")?.addEventListener("click", () => socket.emit("upgrade", { roomId: currentRoomId, type: $("upType").value, tier: "b", base: $("upBase").value }));
-$("upABtn")?.addEventListener("click", () => socket.emit("upgrade", { roomId: currentRoomId, type: $("upType").value, tier: "a", base: $("upBase").value }));
 
 $("submitCombatBtn")?.addEventListener("click", () => {
   const wColor = $("combatW")?.value;
@@ -265,60 +367,51 @@ $("submitCombatBtn")?.addEventListener("click", () => {
 
 socket.on("state", (state) => {
   lastState = state;
-
-  // ✅ 서버에서 밸런스 수신
   if (state.balance) BAL = state.balance;
 
-  // 상단 바
-  if ($("turn")) $("turn").textContent = state.turn;
-  if ($("phase")) $("phase").textContent = `주사위:${state.turnPhase.rolled ? "완료" : "미완료"} / 카드:${state.turnPhase.drew}/${BAL?.turnFlow?.drawPerTurn ?? 2}`;
-  if ($("deckCount")) $("deckCount").textContent = state.deck.length;
+  if (BAL && !upgradeUIBuilt) {
+    buildUpgradeDefsFixedOrder();
+    renderUpgradeButtons();
+  }
 
-  const myTurn = mySeat && state.turn === mySeat;
+  const isPlayer = (mySeat === "A" || mySeat === "B");
+  const myTurn = isPlayer && state.turn === mySeat;
   const drawPerTurn = BAL?.turnFlow?.drawPerTurn ?? 2;
 
-  // 기존 턴 진행 버튼(규칙 반영: 주사위/드로우 기반)
   if ($("rollBtn")) $("rollBtn").disabled = !(myTurn && !state.turnPhase.rolled);
   if ($("takeDeckBtn")) $("takeDeckBtn").disabled = !(myTurn && state.turnPhase.rolled && state.turnPhase.drew >= 1 && state.turnPhase.drew < drawPerTurn);
   if ($("endTurnBtn")) $("endTurnBtn").disabled = !(myTurn && state.turnPhase.rolled && state.turnPhase.drew === drawPerTurn && !state.combat.active);
 
-  // 오픈 카드 버튼
   const openWrap = $("openButtons");
   if (openWrap) {
     openWrap.innerHTML = "";
     (state.open || []).forEach((card, i) => {
       if (!card) return;
+
       const btn = document.createElement("button");
-      btn.textContent = card;
       btn.disabled = !(myTurn && state.turnPhase.rolled && state.turnPhase.drew < drawPerTurn);
+      btn.title = card;
+      btn.appendChild(makeCardIconEl(card));
       btn.onclick = () => socket.emit("takeOpen", { roomId: currentRoomId, index: i });
       openWrap.appendChild(btn);
     });
   }
 
-  // 장착/업글 옵션 구성
-  updateUpgradeBases();
-  updateEquipOptions(state);
+  refreshUpgradeButtons(state);
 
-  // ✅ 장착/업글 버튼 상태 즉시 계산(핵심)
-  refreshButtons(state);
-
-  // 전투 패널
   const panel = $("combatPanel");
   if (panel) {
     if (state.combat.active) {
       panel.style.display = "block";
       const sub = state.combat.submissions?.[mySeat];
-      if ($("combatStatus")) $("combatStatus").textContent = sub ? "내 선택 완료(상대 대기)" : "선택 대기중";
-      if ($("submitCombatBtn")) $("submitCombatBtn").disabled = !!sub;
+      if ($("combatStatus")) $("combatStatus").textContent = sub ? "완료" : "-";
+      if ($("submitCombatBtn")) $("submitCombatBtn").disabled = !!sub || !isPlayer;
     } else {
       panel.style.display = "none";
     }
   }
 
-  // HUD
   if (BAL) renderHUD(state);
 
-  // 로그
-  if ($("log")) $("log").textContent = state.log.slice(-180).join("\n");
+  if ($("log")) $("log").textContent = state.log.slice(-180).reverse().join("\n");
 });

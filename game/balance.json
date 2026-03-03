@@ -31,9 +31,9 @@
   },
 
   "upgradeRules": {
-    "c": { "same": 2, "anySameType": 1 },
-    "b": { "same": 3, "anySameType": 1 },
-    "a": { "same": 5, "anySameType": 0 }
+    "c": { "same": 2, "any": 1 },
+    "b": { "same": 3, "any": 1 },
+    "a": { "same": 5, "any": 0 }
   },
 
   "turnFlow": {

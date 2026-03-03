@@ -1,4 +1,41 @@
-const { BAL, WEAPON_SET, ARMOR_SET } = require("./balance");
+// game/engine.js
+
+const fs = require("fs");
+const path = require("path");
+
+// ✅ engine이 balance.js를 require 하면 순환 의존이 생길 수 있어서,
+// engine은 balance.json을 직접 읽는다.
+function loadBalanceJson() {
+  const p = path.join(__dirname, "balance.json");
+  const raw = fs.readFileSync(p, "utf-8");
+  const bal = JSON.parse(raw);
+
+  if (!bal.cards?.weaponsBase?.length) throw new Error("balance.json: cards.weaponsBase missing");
+  if (!bal.cards?.armorsBase?.length) throw new Error("balance.json: cards.armorsBase missing");
+  if (!bal.turnFlow?.openSlots) throw new Error("balance.json: turnFlow.openSlots missing");
+  if (!bal.deck?.length) throw new Error("balance.json: deck missing");
+
+  return bal;
+}
+
+const BAL = loadBalanceJson();
+
+// ✅ fast lookup sets (무기/방어 판별)
+const WEAPON_SET = new Set();
+const ARMOR_SET = new Set();
+
+for (const c of BAL.cards.weaponsBase) WEAPON_SET.add(c);
+for (const c of BAL.cards.armorsBase) ARMOR_SET.add(c);
+
+// upgraded: c/b
+if (BAL.cards?.upgraded?.weapon?.c) WEAPON_SET.add(BAL.cards.upgraded.weapon.c);
+if (BAL.cards?.upgraded?.weapon?.b) WEAPON_SET.add(BAL.cards.upgraded.weapon.b);
+if (BAL.cards?.upgraded?.armor?.c) ARMOR_SET.add(BAL.cards.upgraded.armor.c);
+if (BAL.cards?.upgraded?.armor?.b) ARMOR_SET.add(BAL.cards.upgraded.armor.b);
+
+// upgraded: a maps
+for (const v of Object.values(BAL.cards?.upgraded?.weapon?.a || {})) WEAPON_SET.add(v);
+for (const v of Object.values(BAL.cards?.upgraded?.armor?.a || {})) ARMOR_SET.add(v);
 
 function isWeapon(card) {
   return WEAPON_SET.has(card);
@@ -111,19 +148,57 @@ function removeFromHandOrEquipped(state, seat, cardsToRemove) {
   return true;
 }
 
-// "아무(동종)" 고르기: base*needSame 소모 후 남은 카드 중에서 동종(무기/방어) 1장
-function pickAnyOfSameTypeAfterBase(totalCounts, base, needSame, wantWeapon) {
+/**
+ * ✅ "아무 카드(동종)" 고르기: 낮은 등급 우선
+ * 우선순위: base(0) < c(1) < b(2) < a(3)
+ * 같은 등급이면 이름 오름차순(재현성)
+ */
+function pickAnyAfterBase(totalCounts, base, needSame, type) {
   const temp = { ...totalCounts };
   temp[base] = (temp[base] || 0) - needSame;
+
+  const upW = BAL.cards?.upgraded?.weapon || {};
+  const upA = BAL.cards?.upgraded?.armor || {};
+  const aWSet = new Set(Object.values(upW.a || {}));
+  const aASet = new Set(Object.values(upA.a || {}));
+
+  function tierRank(card) {
+    // base (검/활/마법봉/방패/힐/회피)
+    if (BAL.cards.weaponsBase.includes(card) || BAL.cards.armorsBase.includes(card)) return 0;
+
+    // c/b
+    if (card === upW.c || card === upA.c) return 1;
+    if (card === upW.b || card === upA.b) return 2;
+
+    // a (a검/a활/a방패/a힐 등 실제 매핑 값들)
+    if (aWSet.has(card) || aASet.has(card)) return 3;
+
+    // 혹시 모르는 카드(확장 대비)는 맨 뒤
+    return 99;
+  }
 
   const candidates = [];
   for (const [k, v] of Object.entries(temp)) {
     if (v <= 0) continue;
-    if (wantWeapon && isWeapon(k)) candidates.push(k);
-    if (!wantWeapon && isArmor(k)) candidates.push(k);
+
+    // 동종 필터
+    if (type === "weapon") {
+      if (!isWeapon(k)) continue;
+    } else if (type === "armor") {
+      if (!isArmor(k)) continue;
+    } else continue;
+
+    candidates.push(k);
   }
 
-  candidates.sort();
+  // ✅ 낮은 등급 → 이름순
+  candidates.sort((x, y) => {
+    const rx = tierRank(x);
+    const ry = tierRank(y);
+    if (rx !== ry) return rx - ry;
+    return x > y ? 1 : x < y ? -1 : 0;
+  });
+
   return candidates.length ? candidates[0] : null;
 }
 
@@ -135,6 +210,8 @@ function createInitialState() {
   return {
     hp: { A: BAL.hp.start, B: BAL.hp.start },
     turn: "A",
+    turnCount: 1,
+    pendingTurnBreak: false,
 
     deck,
     open,
@@ -248,6 +325,6 @@ module.exports = {
   resolveCombat,
   countsWithEquipped,
   removeFromHandOrEquipped,
-  pickAnyOfSameTypeAfterBase,
+  pickAnyAfterBase,
   getUpgradeResult
 };

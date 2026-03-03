@@ -1,3 +1,5 @@
+ <!-- index.html -->
+
 <!doctype html>
 <html lang="ko">
 <head>
@@ -10,16 +12,11 @@
 <body>
   <div class="container">
     <div class="topbar">
-      <div class="title">불의검 <span class="subtitle">Prototype</span></div>
+      <div class="title">불의검</div>
 
       <div class="panel joinRow">
-        <input id="roomId" placeholder="room id (예: abc123)" />
+        <input id="roomId" placeholder="" />
         <button id="joinBtn">방 입장</button>
-
-        <span class="pill">내 좌석 <b id="seat">-</b></span>
-        <span class="pill">현재 턴 <b id="turn">-</b></span>
-        <span class="pill">진행 <b id="phase">-</b></span>
-        <span class="pill">덱 <b id="deckCount">-</b></span>
       </div>
     </div>
 
@@ -30,29 +27,27 @@
           <div class="hudLeft">
             <div class="badge" id="leftBadge">-</div>
             <div>
-              <div class="hudName" id="leftName">YOU</div>
               <div class="hudMeta">HP <b id="leftHp">-</b> / 20</div>
             </div>
           </div>
-          <div class="hudMeta">손패 <b id="leftHandCount">0</b></div>
         </div>
 
         <div class="hpbar"><div class="hpfill" id="leftHpFill"></div></div>
 
+        <!-- (왼)방어 / (오)무기 -->
         <div class="hudGrid">
-          <div class="panel2">
-            <div class="label">무기</div>
-            <div class="value" id="leftWeapon">-</div>
-          </div>
           <div class="panel2">
             <div class="label">방어</div>
             <div class="value" id="leftArmor">-</div>
           </div>
+          <div class="panel2">
+            <div class="label">무기</div>
+            <div class="value" id="leftWeapon">-</div>
+          </div>
         </div>
 
         <div class="chips">
-          <span class="chip"><small>토큰</small> <span id="leftTokens" class="tokline"></span></span>
-          <span class="chip"><small>총합</small> <span id="leftTokTotal">-</span></span>
+          <span class="chip"><span id="leftTokens" class="tokline"></span></span>
         </div>
 
         <div class="divider"></div>
@@ -66,29 +61,27 @@
           <div class="hudLeft">
             <div class="badge" id="rightBadge">-</div>
             <div>
-              <div class="hudName" id="rightName">OPPONENT</div>
               <div class="hudMeta">HP <b id="rightHp">-</b> / 20</div>
             </div>
           </div>
-          <div class="hudMeta">손패 <b id="rightHandCount">0</b></div>
         </div>
 
         <div class="hpbar"><div class="hpfill" id="rightHpFill"></div></div>
 
+        <!-- (왼)방어 / (오)무기 -->
         <div class="hudGrid">
-          <div class="panel2">
-            <div class="label">무기</div>
-            <div class="value" id="rightWeapon">-</div>
-          </div>
           <div class="panel2">
             <div class="label">방어</div>
             <div class="value" id="rightArmor">-</div>
           </div>
+          <div class="panel2">
+            <div class="label">무기</div>
+            <div class="value" id="rightWeapon">-</div>
+          </div>
         </div>
 
         <div class="chips">
-          <span class="chip"><small>토큰</small> <span id="rightTokens" class="tokline"></span></span>
-          <span class="chip"><small>총합</small> <span id="rightTokTotal">-</span></span>
+          <span class="chip"><span id="rightTokens" class="tokline"></span></span>
         </div>
 
         <div class="divider"></div>
@@ -103,49 +96,17 @@
       <div class="panel col">
         <div class="sectionTitle">조작</div>
 
-        <!-- ✅ 여기만 3:7 -->
-        <div class="actionSplit">
-          <div class="actionLeft">
-            <div class="btnGrid" style="flex-wrap:nowrap;">
-              <button id="rollBtn" disabled>🎲 주사위</button>
-            </div>
-          </div>
-
-          <div class="vDivider"></div>
-
-          <div class="actionRight">
-            <div class="openRow">
-              <button id="takeDeckBtn" disabled>📦 덱에서 1장</button>
-              <div id="openButtons" class="openRow"></div>
-            </div>
-          </div>
+        <div class="actionRow">
+          <button id="rollBtn" class="actionBtn" disabled title="주사위">🎲</button>
+          <button id="takeDeckBtn" class="actionBtn" disabled title="덱">📦</button>
+          <div id="openButtons" class="actionRowInner"></div>
         </div>
 
         <div class="divider"></div>
 
-        <div class="sectionTitle">장착</div>
-        <div class="btnGrid">
-          <select id="equipSlot">
-            <option value="weapon">무기</option>
-            <option value="armor">방어</option>
-          </select>
-          <select id="equipCard"></select>
-          <button id="equipBtn" disabled>장착</button>
-        </div>
-
-        <div class="divider"></div>
-
+        <!-- ✅ 업그레이드: 10장 아이콘 버튼만 -->
         <div class="sectionTitle">업그레이드</div>
-        <div class="btnGrid">
-          <select id="upType">
-            <option value="weapon">무기</option>
-            <option value="armor">방어</option>
-          </select>
-          <select id="upBase"></select>
-          <button id="upCBtn" disabled>c 업글</button>
-          <button id="upBBtn" disabled>b 업글</button>
-          <button id="upABtn" disabled>a 업글</button>
-        </div>
+        <div id="upgradeButtons" class="upgradeRow"></div>
 
         <div class="divider"></div>
 
