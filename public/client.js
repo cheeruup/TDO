@@ -105,21 +105,25 @@ function renderTokens(el, tokens) {
   if (!el) return;
   el.innerHTML = "";
 
-  const order = ["R", "B", "Y"];
-  const cls = { R: "r", B: "b", Y: "y" };
+  const order = ["Y", "B", "R"];
+  const iconMap = {
+    Y: "🟡",
+    B: "🔵",
+    R: "🔴"
+  };
 
   for (const c of order) {
     const n = tokens?.[c] || 0;
     const grp = document.createElement("span");
     grp.className = "tokgrp";
 
-    const dot = document.createElement("span");
-    dot.className = `dot ${cls[c]}`;
+    const icon = document.createElement("span");
+    icon.textContent = iconMap[c];
 
     const txt = document.createElement("span");
     txt.textContent = `${n}`;
 
-    grp.appendChild(dot);
+    grp.appendChild(icon);
     grp.appendChild(txt);
     el.appendChild(grp);
   }
