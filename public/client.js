@@ -117,7 +117,7 @@ function renderTokens(el, tokens) {
     dot.className = `dot ${cls[c]}`;
 
     const txt = document.createElement("span");
-    txt.textContent = `${c}×${n}`;
+    txt.textContent = `${n}`;
 
     grp.appendChild(dot);
     grp.appendChild(txt);

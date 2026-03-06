@@ -1,5 +1,3 @@
-/* style.css */
-
 :root{
   --bg:#0b0f17;
   --panel: rgba(255,255,255,0.08);
@@ -19,11 +17,7 @@ body{
   color:var(--text);
   font-weight:400;
   overflow-x:hidden;
-  background:
-    radial-gradient(1200px 600px at 15% 10%, rgba(80,180,255,0.18), transparent 55%),
-    radial-gradient(900px 500px at 90% 15%, rgba(255,120,80,0.14), transparent 60%),
-    radial-gradient(900px 600px at 40% 90%, rgba(160,80,255,0.12), transparent 60%),
-    var(--bg);
+  background: var(--bg);
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Apple SD Gothic Neo", "Noto Sans KR", Arial;
 }
 
@@ -94,7 +88,6 @@ body{
   margin-left: auto;
 }
 
-/* 방 입력칸 짧게 */
 #roomId{
   width: 64px;
   min-width: 64px;
@@ -171,7 +164,7 @@ select{
     0 0 10px rgba(255, 70, 70, 0.18);
 }
 
-/* ✅ b=노랑, c=파랑 */
+/* b=노랑, c=파랑 */
 .iconBadge.bYellow{
   background: rgba(255,210,80,0.25);
   border-color: rgba(255,230,140,0.50);
@@ -275,6 +268,20 @@ select{
 .emptyText{ color: rgba(255,255,255,0.55); font-weight: 400; font-size: 12px; }
 
 .sectionTitle{ font-weight: 400; font-size: 13px; color: var(--muted); margin: 0 0 8px 0; }
+
+.sectionTitleInline{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.turnGuideInline{
+  color: rgba(255,255,255,0.82);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .btnGrid{ display:flex; flex-wrap:wrap; gap: 10px; align-items:center; }
 .divider{ border-top: 1px solid var(--line); margin: 12px 0; }
 
@@ -369,4 +376,16 @@ pre{
     gap: 6px;
   }
   .upBtn{ width: 100%; min-width: 0; }
+
+  .turnGuide{
+    font-size: 12px;
+    padding: 7px 9px;
+  }
+  .sectionTitleInline{
+    gap:6px;
+  }
+
+  .turnGuideInline{
+    font-size: 12px;
+  }
 }

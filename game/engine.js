@@ -72,9 +72,9 @@ function relation(att, def) {
 }
 function multiplier(att, def) {
   const rel = relation(att, def);
-  if (rel === 1) return BAL.multiplier.win;
-  if (rel === -1) return BAL.multiplier.lose;
-  return BAL.multiplier.draw;
+  if (rel === 1) return 1;   // 상성 유리 +1
+  if (rel === -1) return -1; // 상성 불리 -1
+  return 0;                  // 동일 0
 }
 
 function makeDeck() {
@@ -283,8 +283,8 @@ function resolveCombat(state) {
   const baseDmgToB = Math.max(0, atkA - defB);
   const baseDmgToA = Math.max(0, atkB - defA);
 
-  const dmgToB = baseDmgToB * multA;
-  const dmgToA = baseDmgToA * multB;
+  const dmgToB = Math.max(0, baseDmgToB + multA);
+  const dmgToA = Math.max(0, baseDmgToA + multB);
 
   state.hp.B = Math.max(0, Math.round((state.hp.B - dmgToB) * 10) / 10);
   state.hp.A = Math.max(0, Math.round((state.hp.A - dmgToA) * 10) / 10);
